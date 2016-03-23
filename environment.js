@@ -1,5 +1,5 @@
 module.exports = {
-    
+
     loadSocketIo: function loadSocketIo(redis) {
 
         var port = process.env.PORT || 5001;
@@ -18,7 +18,7 @@ module.exports = {
             });
 
             socket.on('disconnect',function(){
-                redis.sub.removeListener('message', onMessage); 
+                redis.sub.removeListener('message', onMessage);
             });
 
             redis.sub.on('message', onMessage);
@@ -52,7 +52,7 @@ module.exports = {
 
     authorize: function authorize(io, redis) {
         io.use(function(socket, next) {
-           
+
             var sessionId = null;
             var userId = null;
 
@@ -72,35 +72,40 @@ module.exports = {
 
             sessionId = params["_rtToken"];
             userId = params["_rtUserId"];
- 
+
             // retrieve session from redis using the unique key stored in cookies
-            redis.getSet.hget([("rtSession-" + userId), sessionId], 
+            redis.getSet.hget([("rtSession-" + userId), sessionId],
                 function(err, session) {
+                  console.log(err);
+                  console.log(session);
                     if (err || !session) {
+                        console.log("Unauthorized Realtime user (session)");
                         next(new Error('Unauthorized Realtime user (session)'));
                     } else {
+                      console.log("new session pass");
                         socket.request.session = JSON.parse(session);
                         next();
                     }
                 }
             );
-            
+
         });
     },
 
     loadRedis: function loadRedis() {
         var redis = require('redis');
         var url = require('url');
-        var redisURL = url.parse("redis://127.0.0.1:6379/0");
+        var redisURL = url.parse("redis://127.0.0.1:6379/2");
         var redisSub, redisPub, redisGetSet = null;
-        
+
         if (process.env.REDISCLOUD_URL == null) {
             // use local client if there's no redis cloud url set up.
-            redisSub = redis.createClient();
-            redisPub = redis.createClient();
-            redisGetSet = redis.createClient();
+            redisSub = redis.createClient(6379, 'localhost', {db: 2});
+            redisPub = redis.createClient(6379, 'localhost', {db: 2});
+            redisGetSet = redis.createClient(6379, 'localhost', {db: 2});
         } else {
             // use environment redis connection info.
+            console.log('REDISCLOUD_URL');
             redisURL = url.parse(process.env.REDISCLOUD_URL);
             redisSub = redis.createClient(redisURL.port, redisURL.hostname, {
                 no_ready_check: true
