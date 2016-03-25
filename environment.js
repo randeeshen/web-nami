@@ -1,3 +1,5 @@
+var _ = require("underscore")._;
+
 module.exports = {
 
   loadSocketIo: function loadSocketIo(redis) {
@@ -16,7 +18,7 @@ module.exports = {
 
     io.on('connection', function(socket) {
 
-      io.sockets.emit('realtime_msg', { msg: 'New User come in' });
+      socket.join('user:' + socket.request.session['user_id']);
 
       socket.on('realtime_user_id_connected', function(message) {
         console.log('Realtime User ID connected: ' + message.userId);
@@ -27,32 +29,27 @@ module.exports = {
         redis.sub.removeListener('message', onMessage);
       });
 
-      redis.sub.on('message', onMessage);
-
-      function onMessage(channel, message){
-        // can't deliver a message to a socket with no handshake(session) established
-        if (socket.request === undefined) {
-          return;
-        }
-
-        msg = JSON.parse(message);
-
-        var currentSocketIoUserId = socket.request.session['user_id'];
-
-        // if the recipient user id list is not part of the message
-        // then define it anyways.
-        if (msg.recipient_user_ids === undefined || msg.recipient_user_ids == null) {
-          msg.recipient_user_ids = [];
-        }
-
-        if (msg.recipient_user_ids.indexOf(currentSocketIoUserId) != -1) {
-          delete msg.recipient_user_ids; //don't include this with the message
-          console.log("emit to : " + currentSocketIoUserId);
-          socket.emit('realtime_msg', msg);
-        }
-      };
-
     });
+
+    redis.sub.on('message', onMessage);
+
+    function onMessage(channel, message){
+
+      msg = JSON.parse(message);
+
+      // if the recipient user id list is not part of the message
+      // then define it anyways.
+      if (msg.recipient_user_ids === undefined || msg.recipient_user_ids == null) {
+        msg.recipient_user_ids = [];
+      }
+
+      if (msg.recipient_user_ids.length > 0) {
+        _.each(msg.recipient_user_ids, function(user_id, index){
+          io.sockets.in('user:' + user_id).emit('realtime_msg', {msg: msg.msg});
+        })
+      }
+
+    };
 
     return io;
   },
@@ -82,6 +79,7 @@ module.exports = {
 
       console.log("============= Authorize Info ============")
       console.log("sessionId: " + sessionId + " userID: " + userId);
+      console.log("request cookie: " + socket.request.headers.cookie);
       // retrieve session from redis using the unique key stored in cookies
       redis.getSet.hget([("rtSession-" + userId), sessionId],
                         function(err, session) {
