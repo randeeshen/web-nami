@@ -14,7 +14,7 @@ module.exports = {
 
     var io = require('socket.io').listen(Number(port));
     var redisAdapter = require('socket.io-redis');
-    io.adapter(redisAdapter({ host: 'localhost', port: 6379}));
+    io.adapter(redisAdapter({ host: 'localhost', port: 6379, db: 2}));
 
     io.on('connection', function(socket) {
 
@@ -106,9 +106,9 @@ module.exports = {
 
     if (process.env.REDISCLOUD_URL == null) {
       // use local client if there's no redis cloud url set up.
-      redisSub = redis.createClient(6379, 'localhost');
-      redisPub = redis.createClient(6379, 'localhost');
-      redisGetSet = redis.createClient(6379, 'localhost');
+      redisSub = redis.createClient(6379, 'localhost', 2);
+      redisPub = redis.createClient(6379, 'localhost', 2);
+      redisGetSet = redis.createClient(6379, 'localhost', 2);
     } else {
       // use environment redis connection info.
       console.log('REDISCLOUD_URL');
