@@ -29,27 +29,26 @@ module.exports = {
         redis.sub.removeListener('message', onMessage);
       });
 
+      redis.sub.on('message', onMessage);
+
+      function onMessage(channel, message){
+
+        msg = JSON.parse(message);
+
+        // if the recipient user id list is not part of the message
+        // then define it anyways.
+        if (msg.recipient_user_ids === undefined || msg.recipient_user_ids == null) {
+          msg.recipient_user_ids = [];
+        }
+
+        if (msg.recipient_user_ids.length > 0) {
+          _.each(msg.recipient_user_ids, function(user_id, index){
+            io.sockets.in('user:' + user_id).emit('realtime_msg', {msg: msg.msg});
+          })
+        }
+      };
+
     });
-
-    redis.sub.on('message', onMessage);
-
-    function onMessage(channel, message){
-
-      msg = JSON.parse(message);
-
-      // if the recipient user id list is not part of the message
-      // then define it anyways.
-      if (msg.recipient_user_ids === undefined || msg.recipient_user_ids == null) {
-        msg.recipient_user_ids = [];
-      }
-
-      if (msg.recipient_user_ids.length > 0) {
-        _.each(msg.recipient_user_ids, function(user_id, index){
-          io.sockets.in('user:' + user_id).emit('realtime_msg', {msg: msg.msg});
-        })
-      }
-
-    };
 
     return io;
   },
